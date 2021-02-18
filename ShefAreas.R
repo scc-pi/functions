@@ -19,9 +19,9 @@ library(tidyverse); library(janitor)
 
 #library(esri2sf)
 # Location of local (relative or absolute) or GitHub ssc-pi esri2sf branch
-#esri2sf_branch <- "https://raw.githubusercontent.com/scc-pi/esri2sf/main/"
+esri2sf_branch <- "https://raw.githubusercontent.com/scc-pi/esri2sf/master/R/"
 # If amending the function, comment out code above and uncomment below
-esri2sf_branch <- "../../BI/Repo/esri2sf/R/"
+# esri2sf_branch <- "../../BI/Repo/esri2sf/R/"
 source(str_c(esri2sf_branch, "esri2sf.R"))
 source(str_c(esri2sf_branch, "zzz.R"))
 
