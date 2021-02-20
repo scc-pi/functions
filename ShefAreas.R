@@ -11,17 +11,17 @@
 #  - SCC Portal
 #
 # Resources to help use the APIs:
-#  - ArcGIS REst API https://developers.arcgis.com/rest/services-reference/query-feature-service-layer-.htm
+#  - ArcGIS REST API https://developers.arcgis.com/rest/services-reference/query-feature-service-layer-.htm
 #  - SQL 92 is used by ESRI based APIs 
 #  - HTML encoding for building URL queries https://www.w3schools.com/tags/ref_urlencode.ASP
 
-library(tidyverse); library(janitor)
+library(tidyverse)
 
-#library(esri2sf)
+#library(esri2sf) #maxRecordCount bug for ONS Open Geography
 # Location of local (relative or absolute) or GitHub ssc-pi esri2sf branch
 esri2sf_branch <- "https://raw.githubusercontent.com/scc-pi/esri2sf/master/R/"
-# If amending the function, comment out code above and uncomment below
-# esri2sf_branch <- "../../BI/Repo/esri2sf/R/"
+# If amending the function, comment out variable assignment above and uncomment below
+#esri2sf_branch <- "../esri2sf/R/"
 source(str_c(esri2sf_branch, "esri2sf.R"))
 source(str_c(esri2sf_branch, "zzz.R"))
 
@@ -31,6 +31,7 @@ ons_geog_base_url <- "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/
 # Return a data frame of Sheffield LSOA codes and names
 # from ONS Open Geography Portal
 shef_lsoa_codes <- function(){
+
   esri2df(url = str_c(ons_geog_base_url, "LSOA11_UTLA20_EW_LU/FeatureServer/0"),
           where = "UTLA20NM='Sheffield'") %>%
     select(LSOA11CD, LSOA11NM)
@@ -39,8 +40,6 @@ shef_lsoa_codes <- function(){
 # Return a data frame of Sheffield Ward codes and names
 # from ONS Open Geography Portal
 shef_ward_codes <- function(){
-  
-  # https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/WD20_LAD20_UK_LU_v2/FeatureServer/0/query?outFields=*&where=1%3D1
   
   esri2df(url = str_c(ons_geog_base_url, "WD20_LAD20_UK_LU_v2/FeatureServer/0"),
           where = "LAD20NM='Sheffield'")  %>%
@@ -95,3 +94,12 @@ shef_ward_features <- function(detail = "onsGeneralised"){
           where = clause,
           geomType = "esriGeometryPolygon")  
 }
+
+# # Return 100 Sheffield neighbourhood boundaries as simple features
+# # from SCC Portal
+# shef_neighbourhood_features <- function(token = ""){
+#   
+#   esri2sf(url = "https://sheffieldcitycouncil.cloud.esriuk.com/portal/sharing/servers/1f70fe34009e4967a0b6290807f46df1/rest/services/AGOL/Boundaries/MapServer/13",
+#           token = "",
+#           geomType = "esriGeometryPolygon")  
+# }
