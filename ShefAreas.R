@@ -19,11 +19,14 @@ library(tidyverse)
 
 #library(esri2sf) #maxRecordCount bug for ONS Open Geography
 # Location of local (relative or absolute) or GitHub ssc-pi esri2sf branch
-esri2sf_branch <- "https://raw.githubusercontent.com/scc-pi/esri2sf/master/R/"
+#esri2sf_branch <- "https://raw.githubusercontent.com/scc-pi/esri2sf/master/R/"
 # If amending the function, comment out variable assignment above and uncomment below
-#esri2sf_branch <- "../esri2sf/R/"
+esri2sf_branch <- "../esri2sf/R/"
 source(str_c(esri2sf_branch, "esri2sf.R"))
 source(str_c(esri2sf_branch, "zzz.R"))
+
+# Functions to help access SCC Portal features
+source("Portal.R")
 
 # Base URL for ONS Open Geography Portal
 ons_geog_base_url <- "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/"
@@ -95,11 +98,41 @@ shef_ward_features <- function(detail = "onsGeneralised"){
           geomType = "esriGeometryPolygon")  
 }
 
-# # Return 100 Sheffield neighbourhood boundaries as simple features
-# # from SCC Portal
-# shef_neighbourhood_features <- function(token = ""){
-#   
-#   esri2sf(url = "https://sheffieldcitycouncil.cloud.esriuk.com/portal/sharing/servers/1f70fe34009e4967a0b6290807f46df1/rest/services/AGOL/Boundaries/MapServer/13",
-#           token = "",
-#           geomType = "esriGeometryPolygon")  
-# }
+# Return 100 Sheffield neighbourhood boundaries as simple features
+# from SCC Portal
+shef_neighbourhood_features <- function(portal_token = ""){
+  
+  if(length(portal_token) == 0) {
+    portal_token <- generatePortalToken(Sys.getenv("portal_id"),
+                                        Sys.getenv("portal_pwd"))
+  }
+  
+  esri2sf(url = "https://sheffieldcitycouncil.cloud.esriuk.com/portal/sharing/servers/1f70fe34009e4967a0b6290807f46df1/rest/services/AGOL/Boundaries/MapServer/13",
+          token = portal_token,
+          geomType = "esriGeometryPolygon")
+}
+
+shef_care_home_features <- function(portal_token = ""){
+  
+  if(length(portal_token) == 0) {
+    portal_token <- generatePortalToken(Sys.getenv("portal_id"),
+                                        Sys.getenv("portal_pwd"))
+  }
+  
+  care_homes_url <- str_c(portal_base_url, 
+                          "d1d56858e23048baaa2ffe5f8fa9b577/rest/services/",
+                          "Portal/Health_Internal/MapServer/5")
+  
+  # browser()
+  
+  portal2sf(url = care_homes_url,
+            token = portal_token,
+            geomType = "esriGeometryPoint")
+}
+
+portal_token <- generatePortalToken(Sys.getenv("portal_id"),
+                                    Sys.getenv("portal_pwd"))
+
+sf_care_homes <- shef_care_home_features(portal_token)
+
+sf_neighbourhoods <- shef_neighbourhood_features()

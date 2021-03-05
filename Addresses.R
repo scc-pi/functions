@@ -1,9 +1,9 @@
 # HEADER ------------------------------------------------------------------
 # Functions to help with processing address data
 
-library(tidyverse); library(magrittr); library(PostcodesioR)
+library(tidyverse); library(magrittr); library(PostcodesioR); library(janitor)
 
-# Add postcode variables to a data frame via RpostcodesioR ----------------  
+# Add postcode variables to a data frame via PostcodesioR ----------------  
 # TODO: Fix pcd_name other than default
 # TODO: Handle incorrect spelling of vars
 add_pcd_vars <- function(df, pcd_name = "postcode",
@@ -157,6 +157,134 @@ add_pcd_vars <- function(df, pcd_name = "postcode",
     #bind_rows(empty_pcds) %>% # add records in the request with null postcodes
 }
 
+# Add LLPG variables to a data frame via Portal locator ---------------- 
+
+set_python <- function(){
+  
+  # Reticulate provides the interface for Python packages
+  library(reticulate)
+  
+  # Define the Python environment that comes with ArcGIS Pro
+  use_condaenv("arcgispro-py3-clone", required=TRUE)
+  
+  # TODO: RStudio prj &/or global setting?
+  #       Sys.getenv("python_env")?
+  #       Pass name of conda env as a function parameter?
+  #       Best practice?
+  #       Does arcgis package need local ArcGIS desktop install?
+  #       Anticipate arcgis not being installed (& conda?)
+}
+
+get_gis <- function(){
+  
+  # TODO: set_python() if not set
+  
+  # Import the GIS library from ArcGIS Python API 
+  arcgis_gis <- import("arcgis.gis")
+  
+  # Try and retrieve Portal credentials from .environ file
+  portal_id = Sys.getenv("portal_id")
+  portal_pwd = Sys.getenv("portal_pwd")
+  
+  # Prompt for Portal credentials if necessary
+  if (portal_id == "") portal_id <- rstudioapi::askForPassword("Portal user ID")
+  if (portal_pwd == "") portal_pwd <- rstudioapi::askForPassword("Portal password")
+  
+  # Login to Portal and get a GIS object
+  gis <- arcgis_gis$GIS("https://sheffieldcitycouncil.cloud.esriuk.com/portal/home/", 
+                        portal_id, portal_pwd)
+}
+
+batch_geocode <- function(addr_batch, addr_name, geocoding, portal_geocoder){
+  
+  # browser()
+  
+  # Add row ID to the batch for a join later
+  addr_batch <- mutate(addr_batch, row_id = row_number())
+  
+  # List of addresses to geocode
+  addresses_to_geocode <- addr_batch %>% 
+    select(all_of(addr_name)) %>% 
+    deframe()
+  
+  # Geocode
+  results <- geocoding$batch_geocode(addresses_to_geocode, 
+                                     geocoder = portal_geocoder)
+  
+  # Put the hierarchical list of geocode results into a data frame
+  df_results <- tibble(result = results) %>% 
+    unnest_wider(result) %>% 
+    unnest_wider(location) %>% 
+    unnest_wider(attributes) %>% 
+    clean_names() %>% 
+    # select(result_id, match_addr, score, status, addr_type, 
+    #        uprn, blpu_class, ward_code, parish_code, usrn) %>% 
+    mutate(result_id = result_id + 1) # row_id starts at 1 not 0
+  
+  # Join results to the original batch data
+  left_join(addr_batch, df_results, by=c("row_id" = "result_id")) %>% 
+    select(-batch_id, -row_id) #remove ID vars used for processing in batches
+}
+
+geocode <- function(addr, addr_name = "address", portal_gis){
+  
+  # Add suffix
+  addr <- rename_with(addr, ~str_c("ORIG_", .))
+  addr_name <- str_c("ORIG_", addr_name)
+  
+  # browser()
+  
+  # Import the geocoding library from ArcGIS Python API 
+  geocoding <- import("arcgis.geocoding")
+  
+  # List the different Portal geocoders
+  geocoders <- geocoding$get_geocoders(portal_gis)
+  #print(geocoders)
+  
+  # Get the geocoder we want to use
+  geocoder_llpg_world <- geocoders[[2]]
+  print(str_c("geocoder_llpg_world: ", geocoder_llpg_world))
+  
+  # Determine the batch size we should use
+  batch_size <- geocoder_llpg_world$properties$locatorProperties$SuggestedBatchSize
+  print(str_c("BatchSize: ", batch_size))
+  
+  # Split data frame to process in batches
+  batches <- group_split(addr, batch_id = ceiling(row_number()/batch_size))
+  
+  # Process batches and combine
+  df_batches <- lapply(batches, batch_geocode, 
+                       addr_name, geocoding, geocoder_llpg_world) %>% 
+    bind_rows() %>% 
+    mutate(uprn = ifelse(str_length(uprn) == 11, #ensure UPRN is 12 characters
+                         str_c("0", uprn),
+                         uprn)) %>%
+    select(starts_with("ORIG_"), one_of(c("uprn", "x","y"))) %>% 
+    rename_with(~str_remove(.,"^ORIG_"))
+}
+
+# Add a multi-line address variable to a partial single-line address variable ----
+add_addr_field <- function(addr, field){
+  if(is.na(field)){
+    addr <- addr
+  } else {
+    ifelse(is.na(addr), 
+           addr <- field, 
+           addr <- str_c(addr, ", ", field))
+  }
+}
+
+# Pass a list of multi-line address variables and get a ... ----
+# single-line (comma & space separated) address variable
+combine_addr <- function(...){
+  addr_fields <- list(...)
+  addr <- NA
+  for (i in seq_along(addr_fields)) {
+    addr <- add_addr_field(addr, addr_fields[[i]])
+  }
+  return(addr)
+}
+
 # DEPRECATED Add postcode variables to a data frame via RpostcodesioR ----  
 postcode_details_add <- function(df, pcd_var, .admin_district = TRUE, .lat_long = FALSE){
   
@@ -254,7 +382,7 @@ postcode_details_add <- function(df, pcd_var, .admin_district = TRUE, .lat_long 
     rename({{pcd_var}} := postcode) # Rename postcode column back to original name
 }
 
-# Extract the UPRNs from the feature ... ---- 
+#  DEPRECATED Extract the UPRNs from the feature ... ---- 
 #  ... created by our llpg_world_geocode() Python function
 extract_uprns <- function(path, feature){
   
@@ -272,26 +400,4 @@ extract_uprns <- function(path, feature){
     rename_at(.vars = vars(starts_with("user_")),
               .funs = ~sub("^user_", "", .)) %>% # Remove prefix "user_" from column names
     arrange(desc(status), desc(addr_type), score)
-}
-
-# Add a multi-line address variable to a partial single-line address variable ----
-add_addr_field <- function(addr, field){
-  if(is.na(field)){
-    addr <- addr
-  } else {
-    ifelse(is.na(addr), 
-           addr <- field, 
-           addr <- str_c(addr, ", ", field))
-  }
-}
-
-# Pass a list of multi-line address variables and get a ... ----
-# single-line (comma & space separated) address variable
-combine_addr <- function(...){
-  addr_fields <- list(...)
-  addr <- NA
-  for (i in seq_along(addr_fields)) {
-    addr <- add_addr_field(addr, addr_fields[[i]])
-  }
-  return(addr)
 }

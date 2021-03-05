@@ -41,3 +41,6 @@ vignettes/*.pdf
 
 # Readme markdown output
 README.HTML
+
+# archive directory
+/archive/
