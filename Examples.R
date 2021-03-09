@@ -11,6 +11,9 @@ esri2sf_branch <- "https://raw.githubusercontent.com/scc-pi/esri2sf/master/R/"
 source(str_c(esri2sf_branch, "esri2sf.R"))
 source(str_c(esri2sf_branch, "zzz.R"))
 
+# Base URL for ONS Open Geography Portal
+ons_geog_base_url <- "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/"
+
 # Return a data frame of Sheffield LSOA codes and names
 # from ONS Open Geography Portal
 shef_lsoa_codes <- function(){
