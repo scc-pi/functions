@@ -26,7 +26,10 @@ source(str_c(esri2sf_branch, "esri2sf.R"))
 source(str_c(esri2sf_branch, "zzz.R"))
 
 # Functions to help access SCC Portal features
-source("Portal.R")
+functions_dir <- "https://raw.githubusercontent.com/scc-pi/functions/main/"
+# If amending the function, comment out variable assignment above and uncomment below
+#functions_dir <- ""
+source(str_c(functions_dir, "Portal.R"))
 
 # Base URL for ONS Open Geography Portal
 ons_geog_base_url <- "https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/services/"
