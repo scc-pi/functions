@@ -28,7 +28,7 @@ portal2sf <- function(url, outFields = c("*"), where = "1=1",
                       bbox = NULL, token = "", 
                       geomType = NULL, crs = 4326, ...) {
   
-  browser()
+  #browser()
   
   pst <- POST(url,
               query = list(f = "json", token = token),
