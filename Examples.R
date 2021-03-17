@@ -1,7 +1,7 @@
 # HEADER ------------------------------------------------------------------
 # Example functions used in notes
 
-library(tidyverse)
+library(tidyverse); library(sf)
 
 #library(esri2sf) #maxRecordCount bug for ONS Open Geography
 # Location of local (relative or absolute) or GitHub ssc-pi esri2sf branch
